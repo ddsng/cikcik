@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.env
+
+# Output dashboard dibangun ulang tiap run; hanya snapshot histori yang di-commit
+site/*
+!site/data/
+site/data/*
+!site/data/history/

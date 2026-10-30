@@ -1,0 +1,80 @@
+# Konfigurasi IDX Stock Analyzer
+# Ubah watchlist dan ambang analisa di sini tanpa menyentuh kode.
+
+# Daftar saham (tanpa akhiran .JK). Contoh di bawah adalah saham-saham likuid;
+# sesuaikan dengan konstituen LQ45/IDX80 terbaru dari idx.co.id.
+watchlist:
+  - BBCA
+  - BBRI
+  - BMRI
+  - BBNI
+  - BRIS
+  - TLKM
+  - ISAT
+  - EXCL
+  - TOWR
+  - ASII
+  - UNTR
+  - ICBP
+  - INDF
+  - UNVR
+  - KLBF
+  - SIDO
+  - AMRT
+  - MAPI
+  - ACES
+  - CPIN
+  - ADRO
+  - PTBA
+  - ITMG
+  - ANTM
+  - INCO
+  - MDKA
+  - MEDC
+  - PGAS
+  - AKRA
+  - BRPT
+  - INKP
+  - SMGR
+  - CTRA
+  - BSDE
+  - PWON
+  - JSMR
+  - GOTO
+
+benchmark: "^JKSE"      # IHSG
+history_period: "2y"     # cukup untuk SMA200 + 52-week high
+request_delay_sec: 1.0   # jeda antar ticker agar tidak kena rate-limit
+
+# Saham bank: DER & current ratio tidak dihitung, ROA memakai ambang khusus.
+# Juga dideteksi otomatis dari industri "Banks" di data Yahoo.
+bank_tickers: [BBCA, BBRI, BMRI, BBNI, BRIS, BBTN, ARTO, BNGA, NISP, PNBN, BDMN, BJBR, BJTM]
+
+liquidity:
+  min_avg_value_idr: 5_000_000_000   # rata-rata nilai transaksi 20 hari
+
+weights:
+  fundamental: 0.6
+  technical: 0.4
+
+quadrant:
+  fundamental_threshold: 60
+  technical_threshold: 55
+
+risk:
+  atr_stop_mult: 2.0
+  atr_target_mult: 3.0
+
+# Ambang fundamental: [nilai_penuh, nilai_nol, bobot]. Interpolasi linier di antaranya.
+fundamental:
+  per:            {full: 10,   zero: 30,   weight: 12}
+  pbv:            {full: 1.0,  zero: 5.0,  weight: 10}
+  dividend_yield: {full: 0.06, zero: 0.0,  weight: 8}
+  roe:            {full: 0.20, zero: 0.0,  weight: 12}
+  roa:            {full: 0.10, zero: 0.0,  weight: 8,  bank_full: 0.02}
+  net_margin:     {full: 0.20, zero: 0.0,  weight: 10}
+  revenue_growth: {full: 0.15, zero: -0.10, weight: 10}
+  earnings_growth: {full: 0.20, zero: -0.20, weight: 10}
+  debt_to_equity: {full: 0.5,  zero: 2.0,  weight: 10, skip_for_bank: true}
+  current_ratio:  {full: 2.0,  zero: 0.8,  weight: 5,  skip_for_bank: true}
+  cash_conversion: {full: 1.0, zero: 0.0,  weight: 5}

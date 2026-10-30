@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IDX Stock Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#f6f5f1;--panel:#ffffff;--ink:#1c1d1f;--muted:#6b6f76;--line:#e3e1da;
+  --accent:#0f5e57;--green:#1e7f4f;--red:#b23a2e;--amber:#b7791f;--blue:#2c5d9b;
+  --green-bg:#e3f2ea;--red-bg:#f8e6e3;--amber-bg:#fbf0dc;--blue-bg:#e3ecf7;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;--sans:"IBM Plex Sans",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121315;--panel:#1b1c1f;--ink:#e8e6e1;--muted:#9a9ea6;--line:#2c2e32;--accent:#4fb3a7;
+  --green:#5cc28c;--red:#e57b6e;--amber:#e0b15a;--blue:#7aa7e0;
+  --green-bg:#173325;--red-bg:#3a1e1a;--amber-bg:#3a2e16;--blue-bg:#1b2a3d;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans)}
+header{padding:28px 16px 16px;max-width:1280px;margin:auto}
+h1{font:600 22px var(--sans);margin:0;letter-spacing:-.01em}
+h1 span{color:var(--accent)}
+.sub{color:var(--muted);font-size:13px;margin-top:4px}
+main{max-width:1280px;margin:auto;padding:0 16px 48px}
+.quads{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:8px 0 18px}
+.quad{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;text-align:left;color:inherit;font:inherit}
+.quad[aria-pressed="true"]{outline:2px solid var(--accent)}
+.quad b{font:600 26px var(--mono);display:block}
+.quad small{color:var(--muted)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+input,select{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
+input{flex:1;min-width:160px}
+.tablewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:980px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-weight:500;color:var(--muted);font-size:12px;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--panel)}
+th:nth-child(-n+3),td:nth-child(-n+3){text-align:left}
+td{font-family:var(--mono);font-size:13px}
+td.name{font-family:var(--sans);max-width:200px;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.tk{font-weight:600;color:var(--ink)}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font:500 12px var(--sans)}
+.q-utama{background:var(--green-bg);color:var(--green)}
+.q-value{background:var(--blue-bg);color:var(--blue)}
+.q-momentum{background:var(--amber-bg);color:var(--amber)}
+.q-hindari{background:var(--red-bg);color:var(--red)}
+.bar{display:inline-block;width:46px;height:6px;border-radius:3px;background:var(--line);vertical-align:middle;margin-left:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.warn{color:var(--amber);font-family:var(--sans)}
+#detail{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px;z-index:5}
+#detail.open{display:flex}
+.card{background:var(--panel);border-radius:12px;max-width:980px;width:100%;padding:20px;border:1px solid var(--line)}
+.card h2{margin:0;font-size:20px}
+.card .close{float:right;border:0;background:none;color:var(--muted);font-size:22px;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px}
+.stat small{color:var(--muted);display:block;font-size:12px}
+.stat b{font:600 18px var(--mono)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cols h3{font-size:13px;color:var(--muted);font-weight:500;margin:10px 0 6px;text-transform:uppercase;letter-spacing:.05em}
+.kv{display:flex;justify-content:space-between;border-bottom:1px dashed var(--line);padding:4px 0;font-size:13px}
+.kv span:last-child{font-family:var(--mono)}
+ul.reasons{margin:4px 0;padding-left:18px}
+.disc{color:var(--muted);font-size:12px;margin-top:20px}
+@media (max-width:720px){.quads,.grid{grid-template-columns:repeat(2,1fr)}.cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>IDX <span>Stock Analyzer</span></h1>
+  <div class="sub" id="meta">Memuat data…</div>
+</header>
+<main>
+  <div class="quads" id="quads"></div>
+  <div class="controls">
+    <input id="q" type="search" placeholder="Cari kode atau nama saham…">
+    <select id="sector"><option value="">Semua sektor</option></select>
+    <select id="liq"><option value="">Semua likuiditas</option><option value="1">Hanya likuid</option></select>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr id="head"></tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+  <p class="disc">Skor akhir = bobot fundamental × F + bobot teknikal × T. Data dari Yahoo Finance (tidak resmi) — validasi dengan laporan keuangan resmi IDX. Bukan rekomendasi investasi.</p>
+</main>
+
+<div id="detail" role="dialog" aria-modal="true"><div class="card" id="card"></div></div>
+
+<script>
+const COLS=[
+ ["ticker","Kode"],["name","Nama"],["quadrant","Kuadran"],["final","Skor"],["f","Fund."],["t","Tekn."],
+ ["close","Harga"],["chg1","1H"],["chg20","20H"],["rsi","RSI"],["per","PER"],["pbv","PBV"],["roe","ROE"],["dy","Yield"],["mos","MoS"]];
+const QCLS={"Kandidat utama":"q-utama","Value, tunggu momentum":"q-value","Momentum spekulatif":"q-momentum","Hindari":"q-hindari"};
+let DATA=[],sortKey="final",sortDir=-1,quadFilter="",chart=null,rsiChart=null;
+
+const num=(v,d=0)=>v==null?"–":Number(v).toLocaleString("id-ID",{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=(v,d=1)=>v==null?"–":(v*100).toFixed(d).replace(".",",")+"%";
+const sgn=v=>v==null?"":v>0?"pos":v<0?"neg":"";
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function flat(s){const t=s.technical,m=s.metrics;return{...s,
+ final:s.final_score,f:s.fundamental.score,t:t.score,close:t.close,chg1:t.change_1d,chg20:t.change_20d,rsi:t.rsi,
+ per:m.per,pbv:m.pbv,roe:m.roe,dy:m.dividend_yield,mos:s.valuation?.margin_of_safety}}
+
+async function load(){
+  try{
+    const r=await fetch("data/latest.json",{cache:"no-store"});
+    const j=await r.json();
+    DATA=j.stocks.map(flat);
+    const w=j.weights||{};
+    document.getElementById("meta").textContent=
+      `Diperbarui ${new Date(j.generated_at).toLocaleString("id-ID",{dateStyle:"full",timeStyle:"short"})} WIB · ${j.count} saham · bobot F ${w.fundamental} / T ${w.technical}`+(j.mode==="demo"?" · MODE DEMO (data sintetis)":"");
+    const secs=[...new Set(DATA.map(d=>d.sector).filter(Boolean))].sort();
+    document.getElementById("sector").insertAdjacentHTML("beforeend",secs.map(s=>`<option>${esc(s)}</option>`).join(""));
+    renderQuads();renderHead();render();
+  }catch(e){document.getElementById("meta").textContent="Gagal memuat data/latest.json — jalankan pipeline terlebih dahulu."}
+}
+
+function renderQuads(){
+  const qs=Object.keys(QCLS);
+  document.getElementById("quads").innerHTML=qs.map(q=>`<button class="quad" data-q="${q}" aria-pressed="${quadFilter===q}">
+    <span class="pill ${QCLS[q]}">${q}</span><b>${DATA.filter(d=>d.quadrant===q).length}</b><small>saham</small></button>`).join("");
+  document.querySelectorAll(".quad").forEach(b=>b.onclick=()=>{quadFilter=quadFilter===b.dataset.q?"":b.dataset.q;renderQuads();render()});
+}
+function renderHead(){
+  document.getElementById("head").innerHTML=COLS.map(([k,l])=>`<th data-k="${k}">${l}${sortKey===k?(sortDir>0?" ▲":" ▼"):""}</th>`).join("");
+  document.querySelectorAll("th").forEach(th=>th.onclick=()=>{const k=th.dataset.k;sortDir=sortKey===k?-sortDir:-1;sortKey=k;renderHead();render()});
+}
+function render(){
+  const q=document.getElementById("q").value.trim().toLowerCase(),sec=document.getElementById("sector").value,liq=document.getElementById("liq").value;
+  let rows=DATA.filter(d=>(!q||d.ticker.toLowerCase().includes(q)||(d.name||"").toLowerCase().includes(q))&&(!sec||d.sector===sec)&&(!quadFilter||d.quadrant===quadFilter)&&(!liq||!d.illiquid));
+  rows.sort((a,b)=>{const x=a[sortKey],y=b[sortKey];if(x==null)return 1;if(y==null)return -1;return(typeof x==="string"?x.localeCompare(y):x-y)*sortDir});
+  document.getElementById("rows").innerHTML=rows.map(d=>`<tr data-t="${d.ticker}">
+   <td class="tk">${d.ticker}${d.illiquid?' <span class="warn" title="Nilai transaksi rendah">●</span>':""}</td>
+   <td class="name" title="${esc(d.name)}">${esc(d.name)}</td>
+   <td><span class="pill ${QCLS[d.quadrant]||""}">${esc(d.quadrant)}</span></td>
+   <td><b>${num(d.final,1)}</b></td>
+   <td>${num(d.f,0)}<span class="bar"><i style="width:${d.f||0}%"></i></span></td>
+   <td>${num(d.t,0)}<span class="bar"><i style="width:${d.t||0}%"></i></span></td>
+   <td>${num(d.close)}</td><td class="${sgn(d.chg1)}">${pct(d.chg1)}</td><td class="${sgn(d.chg20)}">${pct(d.chg20)}</td>
+   <td>${num(d.rsi,0)}</td><td>${num(d.per,1)}</td><td>${num(d.pbv,2)}</td><td>${pct(d.roe)}</td><td>${pct(d.dy)}</td>
+   <td class="${sgn(d.mos)}">${pct(d.mos,0)}</td></tr>`).join("")||`<tr><td colspan="15" style="text-align:center;color:var(--muted)">Tidak ada saham yang cocok</td></tr>`;
+  document.querySelectorAll("#rows tr[data-t]").forEach(tr=>tr.onclick=()=>openDetail(tr.dataset.t));
+}
+
+const FLAB={per:"PER",pbv:"PBV",dividend_yield:"Dividend yield",roe:"ROE",roa:"ROA",net_margin:"Net margin",revenue_growth:"Pertumbuhan pendapatan",earnings_growth:"Pertumbuhan laba",debt_to_equity:"Debt/Equity",current_ratio:"Current ratio",cash_conversion:"Arus kas op./laba"};
+const ISPCT=new Set(["dividend_yield","roe","roa","net_margin","revenue_growth","earnings_growth"]);
+
+async function openDetail(tk){
+  const d=DATA.find(x=>x.ticker===tk),t=d.technical,f=d.fundamental,v=d.valuation||{};
+  const css=getComputedStyle(document.documentElement),C=k=>css.getPropertyValue(k).trim();
+  document.getElementById("card").innerHTML=`
+   <button class="close" aria-label="Tutup">×</button>
+   <h2>${d.ticker} <span class="pill ${QCLS[d.quadrant]||""}">${esc(d.quadrant)}</span></h2>
+   <div class="sub">${esc(d.name||"")} · ${esc(d.sector||"-")} / ${esc(d.industry||"-")} ${f.is_bank?"· perlakuan bank":""} · data per ${t.as_of||"-"}</div>
+   <div class="grid">
+    <div class="stat"><small>Skor akhir</small><b>${num(d.final,1)}</b></div>
+    <div class="stat"><small>Teknikal</small><b>${num(t.score,0)}</b> <small>${esc(t.label)}</small></div>
+    <div class="stat"><small>Fundamental</small><b>${num(f.score,0)}</b> <small>coverage ${pct(f.coverage,0)}</small></div>
+    <div class="stat"><small>Harga</small><b>${num(t.close)}</b> <small class="${sgn(t.change_1d)}">${pct(t.change_1d)}</small></div>
+   </div>
+   <canvas id="pc" height="110"></canvas><canvas id="rc" height="34"></canvas>
+   <div class="cols">
+    <div>
+     <h3>Level teknikal</h3>
+     <div class="kv"><span>Stop loss (2×ATR)</span><span class="neg">${num(t.stop_loss)}</span></div>
+     <div class="kv"><span>Target (3×ATR)</span><span class="pos">${num(t.target)}</span></div>
+     <div class="kv"><span>Support / Resistance 20H</span><span>${num(t.support)} / ${num(t.resistance)}</span></div>
+     <div class="kv"><span>Pivot</span><span>${num(t.pivot)}</span></div>
+     <div class="kv"><span>RSI · ADX · %B</span><span>${num(t.rsi,0)} · ${num(t.adx,0)} · ${num(t.pct_b,2)}</span></div>
+     <div class="kv"><span>Rasio volume 5/20</span><span>${num(t.vol_ratio,2)}</span></div>
+     <div class="kv"><span>High / Low 52 minggu</span><span>${num(t.high_52w)} / ${num(t.low_52w)}</span></div>
+     <div class="kv"><span>Rata-rata nilai transaksi 20H</span><span>Rp ${num((t.avg_value_20d||0)/1e9,1)} M</span></div>
+     <h3>Catatan teknikal</h3><ul class="reasons">${(t.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("")||"<li>–</li>"}</ul>
+    </div>
+    <div>
+     <h3>Fundamental</h3>
+     ${Object.entries(f.pillars||{}).map(([p,s])=>`<div class="kv"><span style="text-transform:capitalize">${p}</span><span>${num(s,0)}<span class="bar"><i style="width:${s||0}%"></i></span></span></div>`).join("")}
+     ${Object.entries(f.detail||{}).map(([k,x])=>`<div class="kv"><span>${FLAB[k]||k}</span><span>${x.value==null?"–":ISPCT.has(k)?pct(x.value):num(x.value,2)} <small style="color:var(--muted)">${x.score==null?(x.note||""):num(x.score,1)+"/"+x.max}</small></span></div>`).join("")}
+     <h3>Valuasi</h3>
+     <div class="kv"><span>Graham number</span><span>${num(v.graham)}</span></div>
+     <div class="kv"><span>EPS × median PER sektor (${num(v.sector_median_per,1)}×)</span><span>${num(v.relative_per)}</span></div>
+     <div class="kv"><span>Nilai wajar · Margin of safety</span><span>${num(v.fair_value)} · <span class="${sgn(v.margin_of_safety)}">${pct(v.margin_of_safety,0)}</span></span></div>
+     <h3>Catatan fundamental</h3><ul class="reasons">${(f.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("")||"<li>–</li>"}</ul>
+    </div>
+   </div>
+   <p class="disc">Bukan rekomendasi investasi. Lakukan riset mandiri.</p>`;
+  document.querySelector("#card .close").onclick=closeDetail;
+  document.getElementById("detail").classList.add("open");
+  try{
+    const p=await (await fetch(`data/prices/${tk}.json`,{cache:"no-store"})).json();
+    if(chart)chart.destroy();if(rsiChart)rsiChart.destroy();
+    const grid={color:C("--line")},tick={color:C("--muted"),maxTicksLimit:8};
+    const ds=(l,data,c,w=1.2,dash)=>({label:l,data,borderColor:c,borderWidth:w,pointRadius:0,borderDash:dash,spanGaps:true});
+    chart=new Chart(document.getElementById("pc"),{type:"line",data:{labels:p.date,datasets:[
+      ds("Close",p.close,C("--ink"),1.6),ds("SMA20",p.sma20,C("--amber")),ds("SMA50",p.sma50,C("--blue")),ds("SMA200",p.sma200,C("--red"),1.2,[4,3])]},
+      options:{animation:false,interaction:{mode:"index",intersect:false},plugins:{legend:{labels:{color:C("--muted"),boxWidth:12}}},
+      scales:{x:{grid,ticks:tick},y:{grid,ticks:{color:C("--muted")}}}}});
+    rsiChart=new Chart(document.getElementById("rc"),{type:"line",data:{labels:p.date,datasets:[ds("RSI 14",p.rsi,C("--accent"))]},
+      options:{animation:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{min:0,max:100,grid,ticks:{color:C("--muted"),stepSize:30}}}}});
+  }catch(e){}
+}
+function closeDetail(){document.getElementById("detail").classList.remove("open")}
+document.getElementById("detail").onclick=e=>{if(e.target.id==="detail")closeDetail()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDetail()});
+["q","sector","liq"].forEach(id=>document.getElementById(id).addEventListener("input",render));
+load();
+</script>
+</body>
+</html>

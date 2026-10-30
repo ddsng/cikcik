@@ -1,0 +1,74 @@
+name: Daily analysis & deploy
+
+on:
+  schedule:
+    # 10:15 UTC = 17:15 WIB, Senin–Jumat (setelah penutupan bursa 16:00 WIB)
+    - cron: "15 10 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: "Ticker dipisah koma (kosong = seluruh watchlist)"
+        required: false
+        default: ""
+      demo:
+        description: "Pakai data sintetis (uji coba)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # commit snapshot histori
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-analysis
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Run analysis
+        env:
+          TICKERS: ${{ github.event.inputs.tickers }}
+          DEMO: ${{ github.event.inputs.demo }}
+        run: |
+          ARGS=""
+          [ -n "$TICKERS" ] && ARGS="$ARGS --tickers $TICKERS"
+          [ "$DEMO" = "true" ] && ARGS="$ARGS --demo"
+          python -m idxanalyzer run --out site $ARGS
+
+      - name: Commit history snapshot
+        if: github.event.inputs.demo != 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f site/data/history/*.json
+          git diff --cached --quiet || git commit -m "data: snapshot $(TZ=Asia/Jakarta date +%F)"
+          git push || echo "push dilewati"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: analyze
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
